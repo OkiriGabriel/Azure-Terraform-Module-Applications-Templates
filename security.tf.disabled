@@ -1,0 +1,40 @@
+# Comprehensive Security Module
+module "security" {
+  source = "./modules/security"
+
+  prefix              = "example-${local.current_env.environment}"
+  location            = local.current_env.location
+  resource_group_name = module.resource_group.name
+  vnet_id             = module.hub.vnet_id
+  tenant_id           = local.current_env.tenant_id
+
+  # Azure Firewall Configuration
+  enable_firewall            = local.current_env.security_config.enable_firewall
+  firewall_subnet_id         = module.hub.subnet_ids["AzureFirewallSubnet"]
+  firewall_sku_tier          = local.current_env.security_config.firewall_sku_tier
+  firewall_network_rules     = local.current_env.security_config.firewall_network_rules
+  firewall_application_rules = local.current_env.security_config.firewall_application_rules
+
+  # DDoS Protection
+  enable_ddos_protection = local.current_env.security_config.enable_ddos_protection
+
+  # Network Security Groups
+  network_security_groups = local.current_env.security_config.network_security_groups
+
+  # Azure Security Center (Defender for Cloud)
+  enable_security_center = local.current_env.security_config.enable_security_center
+  security_contact_email = local.current_env.security_config.security_contact_email
+  security_contact_phone = local.current_env.security_config.security_contact_phone
+
+  # Monitoring
+  log_analytics_workspace_id = local.current_env.security_config.log_analytics_workspace_id
+
+  # NAT Gateway
+  enable_nat_gateway = local.current_env.security_config.enable_nat_gateway
+
+  # Bastion
+  enable_bastion    = local.current_env.security_config.enable_bastion
+  bastion_subnet_id = module.hub.subnet_ids["AzureBastionSubnet"]
+
+  tags = local.current_env.tags
+}

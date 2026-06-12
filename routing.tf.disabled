@@ -1,0 +1,37 @@
+# Advanced Routing Module with Route Tables and UDRs
+module "routing" {
+  source = "./modules/routing"
+
+  location            = local.current_env.location
+  resource_group_name = module.resource_group.name
+
+  # Route Tables
+  route_tables = local.current_env.routing_config.route_tables
+
+  # Subnet Route Table Associations
+  subnet_route_table_associations = local.current_env.routing_config.subnet_route_table_associations
+
+  # Network Virtual Appliances
+  network_virtual_appliances = local.current_env.routing_config.network_virtual_appliances
+
+  # Route Servers
+  route_servers = local.current_env.routing_config.route_servers
+
+  # Route Server BGP Connections
+  route_server_bgp_connections = local.current_env.routing_config.route_server_bgp_connections
+
+  # Traffic Manager
+  traffic_manager_profiles  = local.current_env.routing_config.traffic_manager_profiles
+  traffic_manager_endpoints = local.current_env.routing_config.traffic_manager_endpoints
+
+  # Azure Front Door
+  frontdoor_profiles      = local.current_env.routing_config.frontdoor_profiles
+  frontdoor_endpoints     = local.current_env.routing_config.frontdoor_endpoints
+  frontdoor_origin_groups = local.current_env.routing_config.frontdoor_origin_groups
+  frontdoor_origins       = local.current_env.routing_config.frontdoor_origins
+
+  # Service Endpoint Policies
+  service_endpoint_policies = local.current_env.routing_config.service_endpoint_policies
+
+  tags = local.current_env.tags
+}

@@ -1,0 +1,16 @@
+# VNet Peering Module for Multi-Region Connectivity
+module "vnet_peering" {
+  source = "./modules/vnet-peering"
+
+  peering_configurations = local.current_env.vnet_peering_config.peering_configurations
+
+  global_peering_configurations = local.current_env.vnet_peering_config.global_peering_configurations
+
+  enable_flow_logs        = local.current_env.vnet_peering_config.enable_flow_logs
+  flow_log_configurations = local.current_env.vnet_peering_config.flow_log_configurations
+
+  enable_connection_monitoring      = local.current_env.vnet_peering_config.enable_connection_monitoring
+  connection_monitor_configurations = local.current_env.vnet_peering_config.connection_monitor_configurations
+
+  tags = local.current_env.tags
+}

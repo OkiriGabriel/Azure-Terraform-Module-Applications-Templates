@@ -1,0 +1,123 @@
+name: Pull Request Checks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  pr-title-check:
+    name: PR Title Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Check PR Title Format
+        uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            docs
+            style
+            refactor
+            perf
+            test
+            build
+            ci
+            chore
+          requireScope: false
+
+  pr-size-check:
+    name: PR Size Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check PR size
+        run: |
+          # Get the number of changed files
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...${{ github.sha }} | wc -l)
+          
+          # Get the number of changed lines
+          CHANGED_LINES=$(git diff --shortstat origin/${{ github.base_ref }}...${{ github.sha }} | awk '{print $4+$6}')
+          
+          echo "Changed files: $CHANGED_FILES"
+          echo "Changed lines: $CHANGED_LINES"
+          
+          # Set thresholds
+          MAX_FILES=50
+          MAX_LINES=1000
+          
+          if [ $CHANGED_FILES -gt $MAX_FILES ] || [ $CHANGED_LINES -gt $MAX_LINES ]; then
+            echo "⚠️ Warning: Large PR detected"
+            echo "Consider breaking this PR into smaller, more manageable pieces."
+            echo "This makes review easier and reduces the chance of errors."
+            echo ""
+            echo "Current PR size:"
+            echo "- Files: $CHANGED_FILES (max recommended: $MAX_FILES)"
+            echo "- Lines: $CHANGED_LINES (max recommended: $MAX_LINES)"
+          else
+            echo " PR size is reasonable"
+          fi
+
+  pr-label-check:
+    name: PR Label Check
+    runs-on: ubuntu-latest
+    if: github.event.action == 'opened'
+    
+    steps:
+      - name: Check for labels
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const labels = context.payload.pull_request.labels.map(l => l.name);
+            const requiredLabels = ['enhancement', 'bug', 'documentation', 'infrastructure', 'security'];
+            
+            if (labels.length === 0) {
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: '⚠️ Please add appropriate labels to this PR:\n\n' +
+                      '- `enhancement` - New features or improvements\n' +
+                      '- `bug` - Bug fixes\n' +
+                      '- `documentation` - Documentation changes\n' +
+                      '- `infrastructure` - Infrastructure changes\n' +
+                      '- `security` - Security-related changes'
+              });
+            }
+
+  breaking-changes-check:
+    name: Breaking Changes Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for breaking changes
+        run: |
+          # Check if any main module files were modified
+          BREAKING_FILES=$(git diff --name-only origin/${{ github.base_ref }}...${{ github.sha }} | \
+            grep -E "(main\.tf|variables\.tf|outputs\.tf|provider\.tf)" || true)
+          
+          if [ ! -z "$BREAKING_FILES" ]; then
+            echo "⚠️ Warning: Potential breaking changes detected"
+            echo ""
+            echo "Modified core files:"
+            echo "$BREAKING_FILES"
+            echo ""
+            echo "Please ensure:"
+            echo "1. Changes are backward compatible"
+            echo "2. Documentation is updated"
+            echo "3. Migration guide is provided if needed"
+            echo "4. Version is bumped appropriately"
+          fi

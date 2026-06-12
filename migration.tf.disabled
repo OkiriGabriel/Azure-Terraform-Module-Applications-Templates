@@ -1,0 +1,88 @@
+# Azure Migrate Module for On-Premises Discovery and Assessment
+module "azure_migrate" {
+  source = "./modules/azure-migrate"
+
+  project_name                = "example-${local.current_env.environment}-migrate-project"
+  resource_group_name         = module.resource_group.name
+  location                    = local.current_env.location
+  subscription_id             = local.current_env.subscription_id
+  tenant_id                   = local.current_env.tenant_id
+  service_principal_object_id = local.current_env.service_principal_object_id
+
+  storage_account_name = local.current_env.migration_config.storage_account_name
+  key_vault_name       = local.current_env.migration_config.key_vault_name
+
+  create_log_analytics       = local.current_env.migration_config.create_log_analytics
+  log_analytics_workspace_id = local.current_env.migration_config.log_analytics_workspace_id
+
+  appliance_type     = local.current_env.migration_config.appliance_type
+  discovery_scenario = local.current_env.migration_config.discovery_scenario
+
+  enable_private_endpoints   = local.current_env.migration_config.enable_private_endpoints
+  private_endpoint_subnet_id = local.current_env.migration_config.enable_private_endpoints ? module.spoke1.subnet_ids["WorkloadSubnet"] : null
+
+  create_automation_account = local.current_env.migration_config.create_automation_account
+
+  tags = local.current_env.tags
+}
+
+# Database Migration Service Module
+module "database_migration" {
+  source = "./modules/database-migration"
+
+  dms_name            = "example-${local.current_env.environment}-dms"
+  resource_group_name = module.resource_group.name
+  location            = local.current_env.location
+  subscription_id     = local.current_env.subscription_id
+  subnet_id           = module.spoke1.subnet_ids["WorkloadSubnet"]
+  sku_name            = local.current_env.migration_config.dms_sku_name
+
+  backup_storage_account_name = local.current_env.migration_config.dms_backup_storage_account
+
+  enable_private_endpoint    = local.current_env.migration_config.dms_enable_private_endpoint
+  private_endpoint_subnet_id = local.current_env.migration_config.dms_enable_private_endpoint ? module.spoke1.subnet_ids["WorkloadSubnet"] : null
+
+  create_log_analytics = local.current_env.migration_config.dms_create_log_analytics
+  enable_diagnostics   = local.current_env.migration_config.dms_enable_diagnostics
+
+  sql_to_azure_sql_projects    = local.current_env.migration_config.sql_to_azure_sql_projects
+  postgresql_to_azure_projects = local.current_env.migration_config.postgresql_to_azure_projects
+  mysql_to_azure_projects      = local.current_env.migration_config.mysql_to_azure_projects
+
+  create_automation_account = local.current_env.migration_config.dms_create_automation_account
+
+  tags = local.current_env.tags
+}
+
+# Azure Site Recovery Module for VM Migration
+module "site_recovery" {
+  source = "./modules/site-recovery"
+
+  vault_name          = "example-${local.current_env.environment}-rsv"
+  resource_group_name = module.resource_group.name
+  location            = local.current_env.location
+  target_location     = local.current_env.migration_config.asr_target_location
+  subscription_id     = local.current_env.subscription_id
+
+  vault_sku           = local.current_env.migration_config.asr_vault_sku
+  soft_delete_enabled = local.current_env.migration_config.asr_soft_delete_enabled
+  storage_mode_type   = local.current_env.migration_config.asr_storage_mode_type
+
+  source_fabrics = local.current_env.migration_config.asr_source_fabrics
+  target_fabrics = local.current_env.migration_config.asr_target_fabrics
+
+  source_protection_containers = local.current_env.migration_config.asr_source_protection_containers
+  target_protection_containers = local.current_env.migration_config.asr_target_protection_containers
+
+  replication_policies          = local.current_env.migration_config.asr_replication_policies
+  protection_container_mappings = local.current_env.migration_config.asr_protection_container_mappings
+  network_mappings              = local.current_env.migration_config.asr_network_mappings
+
+  cache_storage_account_name = local.current_env.migration_config.asr_cache_storage_account
+
+  create_automation_account = local.current_env.migration_config.asr_create_automation_account
+  create_log_analytics      = local.current_env.migration_config.asr_create_log_analytics
+  enable_diagnostics        = local.current_env.migration_config.asr_enable_diagnostics
+
+  tags = local.current_env.tags
+}

@@ -1,0 +1,128 @@
+# Backend Configuration Examples
+# Copy the configuration you need to provider.tf
+
+# ==============================================================================
+# Option 1: Local Backend (Development/Testing)
+# ==============================================================================
+# Stores state file locally on your machine
+# Good for: Testing, development, single-user scenarios
+# Note: Not recommended for teams or production
+
+# backend "local" {
+#   path = "terraform.tfstate"
+# }
+
+# ==============================================================================
+# Option 2: Azure Storage Backend (Recommended for Production)
+# ==============================================================================
+# Stores state in Azure Blob Storage with locking via Azure Blob Lease
+# Good for: Team collaboration, production environments
+
+# backend "azurerm" {
+#   resource_group_name  = "terraform-state-rg"
+#   storage_account_name = "tfstateexample"
+#   container_name       = "tfstate"
+#   key                  = "prod.terraform.tfstate"
+#   
+#   # Optional: Use managed identity or service principal
+#   use_azuread_auth     = true
+# }
+
+# To set up Azure Storage backend:
+# 1. Create a storage account:
+#    az group create --name terraform-state-rg --location centralus
+#    az storage account create --name tfstateexample --resource-group terraform-state-rg --location centralus --sku Standard_LRS --encryption-services blob
+#    az storage container create --name tfstate --account-name tfstateexample
+#
+# 2. Get storage account key:
+#    az storage account keys list --resource-group terraform-state-rg --account-name tfstateexample --query '[0].value' -o tsv
+#
+# 3. Set environment variable:
+#    export ARM_ACCESS_KEY="<storage_account_key>"
+
+# ==============================================================================
+# Option 3: Terraform Cloud (Team Collaboration)
+# ==============================================================================
+# Stores state in Terraform Cloud with remote execution
+# Good for: Team collaboration, CI/CD, policy enforcement
+
+# cloud {
+#   organization = "your-organization-name"
+#   
+#   workspaces {
+#     # Option A: Use tags to select workspaces
+#     tags = ["example-infrastructure"]
+#     
+#     # Option B: Use specific workspace name
+#     # name = "example-infrastructure-dev"
+#   }
+# }
+
+# To set up Terraform Cloud:
+# 1. Create account at https://app.terraform.io
+# 2. Create organization
+# 3. Login: terraform login
+# 4. Update organization name above
+
+# ==============================================================================
+# Option 4: Remote Backend (Generic)
+# ==============================================================================
+# Use any Terraform Cloud or Terraform Enterprise instance
+
+# backend "remote" {
+#   hostname     = "app.terraform.io"
+#   organization = "your-organization-name"
+#   
+#   workspaces {
+#     name = "example-infrastructure-dev"
+#   }
+# }
+
+# ==============================================================================
+# Workspace-Specific State Files (Local Backend)
+# ==============================================================================
+# If using local backend with multiple workspaces:
+
+# backend "local" {
+#   # State files will be stored in terraform.tfstate.d/{workspace_name}/
+#   workspace_dir = "terraform.tfstate.d"
+# }
+
+# ==============================================================================
+# State Locking Configuration
+# ==============================================================================
+# For Azure backend, state locking is automatic
+# For local backend with teams, consider using:
+
+# backend "consul" {
+#   address = "consul.example.com"
+#   scheme  = "https"
+#   path    = "terraform/state"
+# }
+
+# ==============================================================================
+# Migration Between Backends
+# ==============================================================================
+# To migrate from one backend to another:
+# 1. Update backend configuration in provider.tf
+# 2. Run: terraform init -migrate-state
+# 3. Confirm the migration when prompted
+# 4. Verify state: terraform state list
+
+# ==============================================================================
+# Environment Variables for Authentication
+# ==============================================================================
+# Azure Storage Backend:
+#   export ARM_ACCESS_KEY="<storage_account_key>"
+#   OR use Azure AD authentication with:
+#   export ARM_USE_AZUREAD=true
+#
+# Terraform Cloud:
+#   Use: terraform login
+#   OR set: TF_TOKEN_app_terraform_io
+#
+# Azure Provider:
+#   export ARM_SUBSCRIPTION_ID="<subscription_id>"
+#   export ARM_TENANT_ID="<tenant_id>"
+#   export ARM_CLIENT_ID="<client_id>"
+#   export ARM_CLIENT_SECRET="<client_secret>"

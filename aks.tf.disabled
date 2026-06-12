@@ -1,0 +1,51 @@
+# Azure Kubernetes Service (AKS) Cluster
+module "aks" {
+  source = "./modules/aks"
+
+  cluster_name        = "example-${local.current_env.environment}-aks-cluster"
+  location            = local.current_env.location
+  resource_group_name = module.resource_group.name
+  dns_prefix          = "example-${local.current_env.environment}-aks"
+  kubernetes_version  = local.current_env.aks_config.kubernetes_version
+
+  default_node_pool = {
+    name                = local.current_env.aks_config.default_node_pool.name
+    node_count          = local.current_env.aks_config.default_node_pool.node_count
+    vm_size             = local.current_env.aks_config.default_node_pool.vm_size
+    os_disk_size_gb     = local.current_env.aks_config.default_node_pool.os_disk_size_gb
+    vnet_subnet_id      = module.spoke1.subnet_ids[local.current_env.aks_config.default_node_pool.subnet_name]
+    max_pods            = local.current_env.aks_config.default_node_pool.max_pods
+    enable_auto_scaling = local.current_env.aks_config.default_node_pool.enable_auto_scaling
+    min_count           = local.current_env.aks_config.default_node_pool.min_count
+    max_count           = local.current_env.aks_config.default_node_pool.max_count
+    availability_zones  = local.current_env.aks_config.default_node_pool.availability_zones
+    max_surge           = local.current_env.aks_config.default_node_pool.max_surge
+  }
+
+  additional_node_pools = local.current_env.aks_config.additional_node_pools
+
+  network_profile = {
+    network_plugin    = local.current_env.aks_config.network_profile.network_plugin
+    network_policy    = local.current_env.aks_config.network_profile.network_policy
+    load_balancer_sku = local.current_env.aks_config.network_profile.load_balancer_sku
+    service_cidr      = local.current_env.aks_config.network_profile.service_cidr
+    dns_service_ip    = local.current_env.aks_config.network_profile.dns_service_ip
+    outbound_type     = local.current_env.aks_config.network_profile.outbound_type
+  }
+
+  enable_azure_ad_rbac            = local.current_env.aks_config.enable_azure_ad_rbac
+  azure_ad_admin_group_object_ids = local.current_env.aks_config.azure_ad_admin_group_object_ids
+  tenant_id                       = local.current_env.tenant_id
+
+  enable_monitoring          = local.current_env.aks_config.enable_monitoring
+  log_analytics_workspace_id = local.current_env.aks_config.log_analytics_workspace_id
+
+  enable_azure_policy               = local.current_env.aks_config.enable_azure_policy
+  enable_key_vault_secrets_provider = local.current_env.aks_config.enable_key_vault_secrets_provider
+  enable_cluster_autoscaler         = local.current_env.aks_config.enable_cluster_autoscaler
+
+  acr_id  = local.current_env.aks_config.acr_id
+  vnet_id = module.spoke1.vnet_id
+
+  tags = local.current_env.tags
+}

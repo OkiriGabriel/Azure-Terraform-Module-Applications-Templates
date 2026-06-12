@@ -1,0 +1,40 @@
+# Azure Virtual WAN (Transit Gateway Equivalent)
+module "virtual_wan" {
+  source = "./modules/virtual-wan"
+
+  virtual_wan_name    = "example-${local.current_env.environment}-vwan"
+  resource_group_name = module.resource_group.name
+  location            = local.current_env.location
+  virtual_wan_type    = local.current_env.virtual_wan_config.type
+
+  allow_branch_to_branch_traffic = local.current_env.virtual_wan_config.allow_branch_to_branch_traffic
+
+  # Virtual Hubs
+  virtual_hubs = local.current_env.virtual_wan_config.virtual_hubs
+
+  # VPN Gateways
+  vpn_gateways = local.current_env.virtual_wan_config.vpn_gateways
+
+  # ExpressRoute Gateways
+  expressroute_gateways = local.current_env.virtual_wan_config.expressroute_gateways
+
+  # VNet Connections
+  vnet_connections = local.current_env.virtual_wan_config.vnet_connections
+
+  # Virtual Hub Route Tables
+  virtual_hub_route_tables = local.current_env.virtual_wan_config.virtual_hub_route_tables
+
+  # VPN Sites
+  vpn_sites = local.current_env.virtual_wan_config.vpn_sites
+
+  # VPN Connections
+  vpn_connections = local.current_env.virtual_wan_config.vpn_connections
+
+  # Hub Firewalls (Secured Hubs)
+  hub_firewalls = local.current_env.virtual_wan_config.hub_firewalls
+
+  # Routing Intents
+  routing_intents = local.current_env.virtual_wan_config.routing_intents
+
+  tags = local.current_env.tags
+}

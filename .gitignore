@@ -1,0 +1,145 @@
+# Local .terraform directories
+**/.terraform/*
+
+# .tfstate files
+*.tfstate
+*.tfstate.*
+
+# Crash log files
+crash.log
+crash.*.log
+
+# Exclude all .tfvars files, which are likely to contain sensitive data
+*.tfvars
+*.tfvars.json
+!example.tfvars
+!vars_enviro_*.tf
+
+# Ignore override files as they are usually used to override resources locally
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Ignore CLI configuration files
+.terraformrc
+terraform.rc
+
+# Ignore SSH keys
+*.pem
+*.key
+id_rsa
+id_rsa.pub
+*.ppk
+
+# Ignore certificates
+*.p12
+*.pfx
+*.pkcs12
+*.jks
+*.keystore
+*.cer
+*.crt
+
+# Credentials and secrets
+*credential*
+!*credential*.example
+*secret*
+modules/container-apps/credential.json
+*.credentials
+.env
+.env.*
+!.env.example
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Backup files
+*.backup
+*.bak
+*.tmp
+*.temp
+
+# Log files
+*.log
+logs/
+
+# Terraform plugin cache
+.terraform.lock.hcl
+
+# Terraform plan files
+*.tfplan
+tfplan
+
+# Local modules (if downloaded)
+.terraform.modules/
+
+# Sensitive JSON files
+credential.json
+credentials.json
+service-account*.json
+
+# Azure CLI credentials
+.azure/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# OS files
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Test and coverage files
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+
+# Documentation build
+_build/
+.sphinx/
+
+# Terraform docs
+.terraform-docs.yml
+
+# Temporary test files
+test-*.tf
+tmp-*.tf
+
+# Local scripts
+local-*.sh
+*.local.sh
+
+# Config files with secrets
+config.local.yml
+config.local.json
+
+# Appliance configuration files (may contain sensitive data)
+modules/azure-migrate/appliance-config.json
+modules/database-migration/dma-config.json
+modules/site-recovery/asr-config.json
+
+# Terraform state backups
+*.backup

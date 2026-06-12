@@ -1,0 +1,103 @@
+# Pre-commit hooks configuration
+# Install: pip install pre-commit
+# Setup: pre-commit install
+# Run manually: pre-commit run --all-files
+
+repos:
+  # Terraform formatting and validation
+  - repo: https://github.com/antonbabenko/pre-commit-terraform
+    rev: v1.88.4
+    hooks:
+      - id: terraform_fmt
+        name: Terraform fmt
+        description: Format Terraform files
+        
+      - id: terraform_validate
+        name: Terraform validate
+        description: Validate Terraform configuration
+        args:
+          - --hook-config=--retry-once-with-cleanup=true
+          - --tf-init-args=-backend=false
+        
+      - id: terraform_docs
+        name: Terraform docs
+        description: Generate Terraform documentation
+        args:
+          - --hook-config=--path-to-file=README.md
+          - --hook-config=--add-to-existing-file=true
+          - --hook-config=--create-file-if-not-exist=true
+        
+      - id: terraform_tflint
+        name: Terraform lint
+        description: Lint Terraform files with TFLint
+        args:
+          - --args=--config=__GIT_WORKING_DIR__/.tflint.hcl
+        
+      - id: terraform_tfsec
+        name: Terraform security scan
+        description: Static analysis of Terraform templates
+        args:
+          - --args=--config-file=__GIT_WORKING_DIR__/.tfsec.yml
+
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+        name: Trim trailing whitespace
+        
+      - id: end-of-file-fixer
+        name: Fix end of files
+        
+      - id: check-yaml
+        name: Check YAML syntax
+        args: ['--safe']
+        
+      - id: check-json
+        name: Check JSON syntax
+        
+      - id: check-added-large-files
+        name: Check for large files
+        args: ['--maxkb=1024']
+        
+      - id: check-merge-conflict
+        name: Check for merge conflicts
+        
+      - id: detect-private-key
+        name: Detect private keys
+        
+      - id: check-case-conflict
+        name: Check for case conflicts
+        
+      - id: mixed-line-ending
+        name: Check line endings
+
+  # Secret detection
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
+    hooks:
+      - id: detect-secrets
+        name: Detect secrets
+        args: ['--baseline', '.secrets.baseline']
+        exclude: package-lock.json
+
+  # Markdown linting
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.39.0
+    hooks:
+      - id: markdownlint
+        name: Markdown lint
+        args: ['--fix']
+
+  # YAML linting
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.35.1
+    hooks:
+      - id: yamllint
+        name: YAML lint
+        args: ['-d', '{extends: default, rules: {line-length: {max: 120}}}']
+
+# Configuration
+default_stages: [commit]
+fail_fast: false
+minimum_pre_commit_version: '2.20.0'

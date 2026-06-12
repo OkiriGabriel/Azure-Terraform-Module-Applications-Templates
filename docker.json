@@ -1,0 +1,223 @@
+{
+    "dashboard": {
+      "title": "Docker Container Monitoring",
+      "tags": ["docker", "containers", "monitoring"],
+      "timezone": "browser",
+      "panels": [
+        {
+          "title": "Running Containers",
+          "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "count(rate(container_last_seen{name=~\".+\"}[5m]))",
+              "legendFormat": "Running"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"value": null, "color": "green"},
+                  {"value": 10, "color": "yellow"},
+                  {"value": 20, "color": "red"}
+                ]
+              }
+            }
+          }
+        },
+        {
+          "title": "Total CPU Usage",
+          "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "sum(rate(container_cpu_usage_seconds_total{name=~\".+\"}[5m])) * 100",
+              "legendFormat": "CPU %"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"value": null, "color": "green"},
+                  {"value": 70, "color": "yellow"},
+                  {"value": 90, "color": "red"}
+                ]
+              }
+            }
+          }
+        },
+        {
+          "title": "Total Memory Usage",
+          "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "sum(container_memory_usage_bytes{name=~\".+\"}) / 1024 / 1024 / 1024",
+              "legendFormat": "Memory GB"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "decgbytes",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"value": null, "color": "green"},
+                  {"value": 8, "color": "yellow"},
+                  {"value": 12, "color": "red"}
+                ]
+              }
+            }
+          }
+        },
+        {
+          "title": "Container Restarts (24h)",
+          "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "sum(changes(container_start_time_seconds[24h]))",
+              "legendFormat": "Restarts"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"value": null, "color": "green"},
+                  {"value": 1, "color": "yellow"},
+                  {"value": 5, "color": "red"}
+                ]
+              }
+            }
+          }
+        },
+        {
+          "title": "CPU Usage by Container",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+          "type": "timeseries",
+          "targets": [
+            {
+              "expr": "rate(container_cpu_usage_seconds_total{name=~\".+\"}[5m]) * 100",
+              "legendFormat": "{{name}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 10
+              }
+            }
+          }
+        },
+        {
+          "title": "Memory Usage by Container",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
+          "type": "timeseries",
+          "targets": [
+            {
+              "expr": "container_memory_usage_bytes{name=~\".+\"} / 1024 / 1024",
+              "legendFormat": "{{name}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "decmbytes",
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 10
+              }
+            }
+          }
+        },
+        {
+          "title": "Network I/O by Container",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
+          "type": "timeseries",
+          "targets": [
+            {
+              "expr": "rate(container_network_receive_bytes_total{name=~\".+\"}[5m])",
+              "legendFormat": "{{name}} - RX"
+            },
+            {
+              "expr": "rate(container_network_transmit_bytes_total{name=~\".+\"}[5m])",
+              "legendFormat": "{{name}} - TX"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "Bps",
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 10
+              }
+            }
+          }
+        },
+        {
+          "title": "Disk I/O by Container",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
+          "type": "timeseries",
+          "targets": [
+            {
+              "expr": "rate(container_fs_reads_bytes_total{name=~\".+\"}[5m])",
+              "legendFormat": "{{name}} - Read"
+            },
+            {
+              "expr": "rate(container_fs_writes_bytes_total{name=~\".+\"}[5m])",
+              "legendFormat": "{{name}} - Write"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "Bps",
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 10
+              }
+            }
+          }
+        },
+        {
+          "title": "Container Status Table",
+          "gridPos": {"h": 10, "w": 24, "x": 0, "y": 20},
+          "type": "table",
+          "targets": [
+            {
+              "expr": "container_last_seen{name=~\".+\"}",
+              "format": "table",
+              "instant": true
+            }
+          ],
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "job": true,
+                  "__name__": true
+                },
+                "renameByName": {
+                  "name": "Container",
+                  "image": "Image",
+                  "id": "ID"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "refresh": "10s",
+      "schemaVersion": 38,
+      "version": 1
+    }
+  }

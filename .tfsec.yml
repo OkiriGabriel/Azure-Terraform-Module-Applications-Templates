@@ -1,0 +1,64 @@
+# TFSec configuration file
+# https://aquasecurity.github.io/tfsec/latest/getting-started/configuration/
+
+# Minimum severity level to report
+# Options: CRITICAL, HIGH, MEDIUM, LOW
+minimum_severity: MEDIUM
+
+# Exclude specific checks by ID
+exclude:
+  # Example: Exclude specific checks if needed
+  # - azure-storage-default-action-deny
+  # - azure-keyvault-specify-network-acl
+
+# Exclude specific directories
+exclude_paths:
+  - .terraform/
+  - .git/
+  - examples/
+  - tests/
+
+# Custom checks configuration
+custom_checks:
+  # Add custom checks here if needed
+  enabled: false
+
+# Ignore specific resource blocks
+ignore:
+  # Example format:
+  # - resource: azurerm_storage_account.example
+  #   rule: azure-storage-default-action-deny
+  #   expiry: 2026-12-31
+  #   reason: "Temporary exception for development"
+
+# Output configuration
+output:
+  format: default
+  verbose: true
+  
+# Workspace configuration
+workspace:
+  # Ignore workspaces that are not relevant
+  exclude:
+    - example-*
+
+# Include passed checks in output
+include_passed: false
+
+# Include ignored checks in output
+include_ignored: false
+
+# Soft fail mode - don't return error exit code
+# Set to true for initial setup, false for enforcement
+soft_fail: false
+
+# Enable/disable specific check categories
+severity_overrides:
+  # Override severity for specific checks if needed
+  # azure-storage-default-action-deny: LOW
+
+# Enable Git history scanning
+git_history: false
+
+# Configuration file version
+config_version: 1
