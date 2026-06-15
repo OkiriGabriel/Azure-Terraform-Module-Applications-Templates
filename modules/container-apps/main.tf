@@ -967,7 +967,7 @@ resource "azurerm_network_security_group" "backend_nsg" {
     access                     = "Allow"
     protocol                   = "Tcp"
     source_port_range          = "*"
-    destination_port_ranges    = ["${var.backend_port}", "${var.backend_port_https}", "${var.backend_application_port}"]
+    destination_port_ranges    = [var.backend_port, var.backend_port_https, var.backend_application_port]
     source_address_prefix      = "AzureCloud"
     destination_address_prefix = "*"
   }
