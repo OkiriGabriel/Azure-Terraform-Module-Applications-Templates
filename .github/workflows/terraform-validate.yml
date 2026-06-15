@@ -152,7 +152,10 @@ jobs:
             "*.jks"
             "*.keystore"
             "*credential*"
-            "*secret*"
+            "*.secret"
+            "*.secrets"
+            "*secret.json"
+            "*secrets.json"
             "*.env"
             ".env.*"
           )

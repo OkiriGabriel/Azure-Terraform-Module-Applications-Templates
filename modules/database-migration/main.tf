@@ -46,7 +46,7 @@ resource "azurerm_database_migration_project" "mysql_to_azure" {
   resource_group_name = var.resource_group_name
   location            = var.location
   source_platform     = "MySQL"
-  target_platform     = "AzureDbForMySQL"
+  target_platform     = "AzureDbForMySql"
 
   tags = var.tags
 }
@@ -72,7 +72,7 @@ resource "azurerm_storage_account" "dms_backup" {
 
 resource "azurerm_storage_container" "dms_backup" {
   name                  = "dms-backups"
-  storage_account_name  = azurerm_storage_account.dms_backup.name
+  storage_account_id    = azurerm_storage_account.dms_backup.id
   container_access_type = "private"
 }
 
