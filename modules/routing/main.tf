@@ -164,13 +164,7 @@ resource "azurerm_traffic_manager_azure_endpoint" "endpoints" {
   weight             = each.value.weight
   priority           = each.value.priority
   enabled            = each.value.enabled
-
-  dynamic "geo_mappings" {
-    for_each = each.value.geo_mappings != null ? each.value.geo_mappings : []
-    content {
-      geo_mappings = geo_mappings.value
-    }
-  }
+  geo_mappings       = length(each.value.geo_mappings) > 0 ? each.value.geo_mappings : null
 }
 
 # Azure Front Door for global HTTP(S) routing
