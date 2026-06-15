@@ -41,10 +41,13 @@ id_rsa.pub
 *.cer
 *.crt
 
-# Credentials and secrets
+# Credentials and sensitive files (not Terraform config)
 *credential*
 !*credential*.example
-*secret*
+*.secret
+*.secrets
+*secret.json
+*secrets.json
 modules/container-apps/credential.json
 *.credentials
 .env
