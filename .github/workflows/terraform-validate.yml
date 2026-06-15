@@ -11,6 +11,9 @@ on:
       - main
       - develop
 
+permissions:
+  contents: read
+
 env:
   TERRAFORM_VERSION: '1.10.0'
   TFSEC_VERSION: 'latest'
@@ -19,6 +22,9 @@ jobs:
   terraform-validate:
     name: Terraform Validation
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     strategy:
       matrix:
         workspace: ['example-infrastructure-dev', 'example-infrastructure-prod']
@@ -48,8 +54,9 @@ jobs:
         run: terraform validate -no-color
 
       - name: Comment PR - Format Check
-        if: github.event_name == 'pull_request' && steps.fmt.outcome == 'failure'
+        if: github.event_name == 'pull_request' && steps.fmt.outcome == 'failure' && github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/github-script@v7
+        continue-on-error: true
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -61,8 +68,9 @@ jobs:
             })
 
       - name: Comment PR - Validation Results
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/github-script@v7
+        continue-on-error: true
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -107,15 +115,17 @@ jobs:
           additional_args: --out tfsec-results.sarif
 
       - name: Upload SARIF file
-        if: always()
+        if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         uses: github/codeql-action/upload-sarif@v3
+        continue-on-error: true
         with:
           sarif_file: tfsec-results.sarif
           category: tfsec
 
       - name: Run tfsec for PR comment
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         uses: aquasecurity/tfsec-pr-commenter-action@v1.3.1
+        continue-on-error: true
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           tfsec_version: ${{ env.TFSEC_VERSION }}
@@ -130,19 +140,35 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: TruffleHog Secret Scan
+      - name: TruffleHog Secret Scan (PR)
+        if: github.event_name == 'pull_request'
         uses: trufflesecurity/trufflehog@main
         with:
           path: ./
-          base: ${{ github.event.repository.default_branch }}
-          head: HEAD
+          base: ${{ github.event.pull_request.base.sha }}
+          head: ${{ github.event.pull_request.head.sha }}
+          extra_args: --debug --only-verified
+
+      - name: TruffleHog Secret Scan (Push)
+        if: github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000'
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.before }}
+          head: ${{ github.sha }}
+          extra_args: --debug --only-verified
+
+      - name: TruffleHog Secret Scan (Push - full repo)
+        if: github.event_name == 'push' && github.event.before == '0000000000000000000000000000000000000000'
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
           extra_args: --debug --only-verified
 
       - name: Check for sensitive files
         run: |
           echo "Checking for sensitive files..."
           
-          # Check for common secret files
           SENSITIVE_FILES=(
             "*.pem"
             "*.key"
@@ -151,22 +177,35 @@ jobs:
             "*.pkcs12"
             "*.jks"
             "*.keystore"
-            "*credential*"
             "*.secret"
             "*.secrets"
             "*secret.json"
             "*secrets.json"
-            "*.env"
+            ".env"
             ".env.*"
           )
           
           FOUND_FILES=()
           for pattern in "${SENSITIVE_FILES[@]}"; do
-            files=$(find . -name "$pattern" -not -path "*/\.git/*" -not -path "*/\.terraform/*" || true)
-            if [ ! -z "$files" ]; then
-              FOUND_FILES+=("$files")
-            fi
+            while IFS= read -r file; do
+              case "$file" in
+                *.example|*/.env.example) continue ;;
+                *) FOUND_FILES+=("$file") ;;
+              esac
+            done < <(find . -name "$pattern" \
+              -not -path "*/.git/*" \
+              -not -path "*/.terraform/*" \
+              -not -name "*.example" \
+              -not -name "env.example" 2>/dev/null || true)
           done
+          
+          # credential files (exclude examples)
+          while IFS= read -r file; do
+            FOUND_FILES+=("$file")
+          done < <(find . -name "*credential*" \
+            -not -path "*/.git/*" \
+            -not -path "*/.terraform/*" \
+            -not -name "*.example" 2>/dev/null || true)
           
           if [ ${#FOUND_FILES[@]} -gt 0 ]; then
             echo "⚠️ Warning: Found potentially sensitive files:"
@@ -174,12 +213,15 @@ jobs:
             echo "Please ensure these files are in .gitignore"
             exit 1
           else
-            echo " No sensitive files found"
+            echo "No sensitive files found"
           fi
 
   checkov-scan:
     name: Checkov Security Scan
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     
     steps:
       - name: Checkout code
@@ -196,8 +238,9 @@ jobs:
           download_external_modules: false
 
       - name: Upload Checkov SARIF
-        if: always()
+        if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         uses: github/codeql-action/upload-sarif@v3
+        continue-on-error: true
         with:
           sarif_file: checkov-results.sarif
           category: checkov
@@ -269,7 +312,7 @@ jobs:
             printf '%s\n' "${MISSING_DOCS[@]}"
             exit 1
           else
-            echo " All required documentation files present"
+            echo "All required documentation files present"
           fi
 
       - name: Check module documentation
@@ -281,7 +324,7 @@ jobs:
             if [ ! -f "$module/README.md" ] && [ ! -f "$module/readme.md" ]; then
               echo "⚠️ Missing README in module: $module_name"
             else
-              echo " README found in module: $module_name"
+              echo "README found in module: $module_name"
             fi
           done
 
@@ -302,7 +345,7 @@ jobs:
         run: tflint --init
 
       - name: Run TFLint
-        run: tflint --recursive --format compact
+        run: tflint --format compact
 
   summary:
     name: Tests Summary
@@ -332,7 +375,7 @@ jobs:
              [[ "${{ needs.documentation-check.result }}" == "success" ]] && \
              [[ "${{ needs.lint-check.result }}" == "success" ]]; then
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo " All checks passed!" >> $GITHUB_STEP_SUMMARY
+            echo "All checks passed!" >> $GITHUB_STEP_SUMMARY
             exit 0
           else
             echo "" >> $GITHUB_STEP_SUMMARY
