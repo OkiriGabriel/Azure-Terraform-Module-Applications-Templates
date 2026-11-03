@@ -202,8 +202,8 @@ Ensure you have:
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/your-org/Azure-full-infrastructure.git
-cd Azure-full-infrastructure
+git clone https://github.com/OkiriGabriel/terraform-azure-platform.git
+cd terraform-azure-platform
 ```
 
 ### 2. Configure Azure Authentication
@@ -590,8 +590,8 @@ Review costs in Azure Cost Management + Billing.
 
 ### Getting Help
 
-- **Issues**: [GitHub Issues](https://github.com/your-org/Azure-full-infrastructure/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/your-org/Azure-full-infrastructure/discussions)
+- **Issues**: [GitHub Issues](https://github.com/OkiriGabriel/terraform-azure-platform/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/OkiriGabriel/terraform-azure-platform/discussions)
 - **Email**: thedavidoyebanji@gmail.com
 
 ### Resources
