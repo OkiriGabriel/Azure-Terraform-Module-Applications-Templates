@@ -1,5 +1,6 @@
 locals {
   openai_location = coalesce(var.openai_location, var.location)
+  search_fqdn     = "${var.name_prefix}-srch.search.windows.net"
 
   # Private endpoints to create when a subnet is supplied.
   private_endpoints = var.private_endpoint_subnet_id == null ? {} : merge(
@@ -7,6 +8,18 @@ locals {
       aml = {
         resource_id = azurerm_machine_learning_workspace.this.id
         subresource = "amlworkspace"
+      }
+      keyvault = {
+        resource_id = azurerm_key_vault.this.id
+        subresource = "vault"
+      }
+      blob = {
+        resource_id = azurerm_storage_account.this.id
+        subresource = "blob"
+      }
+      file = {
+        resource_id = azurerm_storage_account.this.id
+        subresource = "file"
       }
     },
     var.openai_enabled ? {
@@ -37,6 +50,7 @@ resource "azurerm_application_insights" "this" {
 }
 
 resource "azurerm_key_vault" "this" {
+  #checkov:skip=CKV2_AZURE_32:Private endpoint is created by azurerm_private_endpoint.this["keyvault"] when private_endpoint_subnet_id is set
   name                          = var.key_vault_name
   resource_group_name           = var.resource_group_name
   location                      = var.location
@@ -55,6 +69,12 @@ resource "azurerm_key_vault" "this" {
 }
 
 resource "azurerm_storage_account" "this" {
+  #checkov:skip=CKV_AZURE_43:Name is enforced by the storage_account_name variable validation
+  #checkov:skip=CKV_AZURE_33:Queue service is unused by Azure ML; queue logging is a data-plane call blocked by the deny-by-default firewall
+  #checkov:skip=CKV2_AZURE_40:Azure ML system datastores require Shared Key access
+  #checkov:skip=CKV_AZURE_206:Replication is configurable (storage_replication_type); defaults to zone-redundant ZRS, dev opts into LRS
+  #checkov:skip=CKV2_AZURE_1:Platform-managed keys; customer-managed keys are out of scope for this module
+  #checkov:skip=CKV2_AZURE_33:Private endpoints are created by azurerm_private_endpoint.this["blob"/"file"] when private_endpoint_subnet_id is set
   name                            = var.storage_account_name
   resource_group_name             = var.resource_group_name
   location                        = var.location
@@ -63,9 +83,15 @@ resource "azurerm_storage_account" "this" {
   account_kind                    = "StorageV2"
   min_tls_version                 = "TLS1_2"
   https_traffic_only_enabled      = true
+  shared_access_key_enabled       = true # required by Azure ML datastores; SAS lifetime limited by sas_policy
   allow_nested_items_to_be_public = false
   public_network_access_enabled   = var.public_network_access_enabled
   tags                            = var.tags
+
+  sas_policy {
+    expiration_period = "01.00:00:00"
+    expiration_action = "Log"
+  }
 
   network_rules {
     bypass         = ["AzureServices"]
@@ -104,6 +130,7 @@ resource "azurerm_machine_learning_workspace" "this" {
 }
 
 resource "azurerm_machine_learning_compute_cluster" "this" {
+  #checkov:skip=CKV_AZURE_150:min_nodes defaults to 0 in var.compute_clusters; Checkov cannot resolve for_each object attributes
   for_each = var.compute_clusters
 
   name                          = each.key
@@ -131,6 +158,7 @@ resource "azurerm_machine_learning_compute_cluster" "this" {
 # Azure OpenAI
 # ---------------------------------------------------------------------------
 resource "azurerm_cognitive_account" "openai" {
+  #checkov:skip=CKV2_AZURE_22:Platform-managed keys; customer-managed keys are out of scope for this module
   count = var.openai_enabled ? 1 : 0
 
   name                          = "${var.name_prefix}-oai"
@@ -142,6 +170,10 @@ resource "azurerm_cognitive_account" "openai" {
   local_auth_enabled            = var.openai_local_auth_enabled
   public_network_access_enabled = var.public_network_access_enabled
   tags                          = var.tags
+
+  # Data loss prevention: only allow outbound calls to approved endpoints.
+  outbound_network_access_restricted = var.openai_outbound_network_restricted
+  fqdns                              = var.openai_outbound_network_restricted ? concat(var.search_enabled ? [local.search_fqdn] : [], var.openai_allowed_fqdns) : null
 
   identity {
     type = "SystemAssigned"
@@ -174,6 +206,8 @@ resource "azurerm_cognitive_deployment" "this" {
 # Azure AI Search
 # ---------------------------------------------------------------------------
 resource "azurerm_search_service" "this" {
+  #checkov:skip=CKV_AZURE_208:Replica count is configurable (search_replica_count); production uses 3 for the read/write SLA
+  #checkov:skip=CKV_AZURE_209:Replica count is configurable (search_replica_count); production uses 3 for the read SLA
   count = var.search_enabled ? 1 : 0
 
   name                          = "${var.name_prefix}-srch"
@@ -278,5 +312,15 @@ resource "azurerm_private_endpoint" "this" {
       name                 = "default"
       private_dns_zone_ids = [var.private_dns_zone_ids[each.key]]
     }
+  }
+}
+
+# ---------------------------------------------------------------------------
+# Guardrails
+# ---------------------------------------------------------------------------
+check "private_access_reachable" {
+  assert {
+    condition     = var.public_network_access_enabled || var.private_endpoint_subnet_id != null
+    error_message = "Public network access is disabled but private_endpoint_subnet_id is not set: the AI/ML endpoints will be unreachable."
   }
 }

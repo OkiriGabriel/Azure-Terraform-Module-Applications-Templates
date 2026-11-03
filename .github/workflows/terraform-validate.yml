@@ -105,28 +105,19 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-      security-events: write
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Results are printed to the job log only. Uploading SARIF to GitHub code scanning
+      # (GitHub Advanced Security) is intentionally disabled.
       - name: Run tfsec
         uses: aquasecurity/tfsec-action@v1.0.3
         with:
           version: ${{ env.TFSEC_VERSION }}
-          format: sarif
           soft_fail: false
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          additional_args: --out tfsec-results.sarif
-
-      - name: Upload SARIF file
-        if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
-        uses: github/codeql-action/upload-sarif@v3
-        continue-on-error: true
-        with:
-          sarif_file: tfsec-results.sarif
-          category: tfsec
 
       - name: Run tfsec for PR comment
         if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
@@ -227,29 +218,20 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      security-events: write
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Results are printed to the job log only (no GitHub Advanced Security upload).
       - name: Run Checkov
         uses: bridgecrewio/checkov-action@master
         with:
           directory: .
           framework: terraform
-          output_format: cli,sarif
-          output_file_path: console,checkov-results.sarif
+          output_format: cli
           soft_fail: true
           download_external_modules: false
-
-      - name: Upload Checkov SARIF
-        if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
-        uses: github/codeql-action/upload-sarif@v3
-        continue-on-error: true
-        with:
-          sarif_file: checkov-results.sarif
-          category: checkov
 
   discover-modules:
     name: Discover Modules

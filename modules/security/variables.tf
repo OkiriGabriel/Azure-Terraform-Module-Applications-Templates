@@ -126,26 +126,31 @@ variable "network_security_groups" {
 
 # Security Center (Defender for Cloud)
 variable "enable_security_center" {
-  description = "Enable Azure Security Center"
+  description = "Enable Microsoft Defender for Cloud configuration. Off by default because paid (Standard) plans incur charges."
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "defender_plans" {
-  description = "Defender for Cloud plans"
+  description = "Defender for Cloud plans. \"Free\" costs nothing; change a plan to \"Standard\" only if you accept per-resource charges."
   type = map(object({
     tier = string
   }))
   default = {
-    VirtualMachines               = { tier = "Standard" }
-    AppServices                   = { tier = "Standard" }
-    Containers                    = { tier = "Standard" }
-    SqlServers                    = { tier = "Standard" }
-    SqlServerVirtualMachines      = { tier = "Standard" }
-    StorageAccounts               = { tier = "Standard" }
-    KeyVaults                     = { tier = "Standard" }
-    Arm                           = { tier = "Standard" }
-    OpenSourceRelationalDatabases = { tier = "Standard" }
+    VirtualMachines               = { tier = "Free" }
+    AppServices                   = { tier = "Free" }
+    Containers                    = { tier = "Free" }
+    SqlServers                    = { tier = "Free" }
+    SqlServerVirtualMachines      = { tier = "Free" }
+    StorageAccounts               = { tier = "Free" }
+    KeyVaults                     = { tier = "Free" }
+    Arm                           = { tier = "Free" }
+    OpenSourceRelationalDatabases = { tier = "Free" }
+  }
+
+  validation {
+    condition     = alltrue([for p in values(var.defender_plans) : contains(["Free", "Standard"], p.tier)])
+    error_message = "Each Defender plan tier must be Free or Standard."
   }
 }
 

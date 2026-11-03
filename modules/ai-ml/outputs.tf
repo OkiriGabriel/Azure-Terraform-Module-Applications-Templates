@@ -35,7 +35,7 @@ output "openai_deployment_names" {
 
 output "search_endpoint" {
   description = "Azure AI Search endpoint (null when disabled)."
-  value       = try("https://${azurerm_search_service.this[0].name}.search.windows.net", null)
+  value       = var.search_enabled ? "https://${local.search_fqdn}" : null
 }
 
 output "application_insights_connection_string" {

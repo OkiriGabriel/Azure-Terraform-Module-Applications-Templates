@@ -13,7 +13,9 @@ Deploys an AI/ML platform on Azure:
 - **Security**:
   - managed identities with key-less role assignments between the services
   - diagnostic settings to Log Analytics
-  - optional private endpoints
+  - private by default, with optional private endpoints for AML, OpenAI, Search, Key Vault and storage (blob/file)
+  - OpenAI outbound restriction (data loss prevention)
+  - a `check` block that warns when access is private but no private endpoint subnet is set
 
 ```text
                  ┌──────────────────────── Resource Group ────────────────────────┐
@@ -80,21 +82,23 @@ In this repository the module is wired up in [`ai_ml.tf`](../../ai_ml.tf) and co
 | `storage_account_name` | Globally unique storage name (3-24 lowercase alphanumerics) | `string` | n/a |
 | `key_vault_name` | Globally unique Key Vault name (3-24 chars) | `string` | n/a |
 | `tags` | Tags applied to every resource | `map(string)` | `{}` |
-| `public_network_access_enabled` | Allow public access to endpoints | `bool` | `true` |
-| `storage_replication_type` | LRS, ZRS, GRS, RAGRS, GZRS, RAGZRS | `string` | `"LRS"` |
+| `public_network_access_enabled` | Allow public access to endpoints (private by default; dev sets `true`) | `bool` | `false` |
+| `storage_replication_type` | LRS, ZRS, GRS, RAGRS, GZRS, RAGZRS | `string` | `"ZRS"` |
 | `container_registry_id` | Existing ACR for environment images | `string` | `null` |
 | `high_business_impact` | Reduce diagnostic data collected by Microsoft | `bool` | `false` |
 | `compute_clusters` | Map of clusters: `vm_size`, `vm_priority`, `min_nodes`, `max_nodes`, `idle_before_scale_in`, `subnet_id` | `map(object)` | `{}` |
 | `openai_enabled` | Deploy Azure OpenAI | `bool` | `true` |
 | `openai_location` | Region for Azure OpenAI (defaults to `location`) | `string` | `null` |
 | `openai_local_auth_enabled` | Allow API keys (keep `false` for Entra ID only) | `bool` | `false` |
+| `openai_outbound_network_restricted` | Data loss prevention: restrict OpenAI outbound calls (the Search endpoint is allowed automatically) | `bool` | `true` |
+| `openai_allowed_fqdns` | Extra FQDNs OpenAI may call when restricted | `list(string)` | `[]` |
 | `openai_deployments` | Map of deployments: `model_name`, `model_version`, `sku_name`, `capacity` | `map(object)` | `{}` |
 | `search_enabled` | Deploy Azure AI Search | `bool` | `true` |
 | `search_sku` | free, basic, standard, standard2, standard3, storage_optimized_l1/l2 | `string` | `"basic"` |
 | `search_replica_count` | Search replicas (≥2 for read SLA, ≥3 for read/write SLA) | `number` | `1` |
 | `search_partition_count` | Search partitions | `number` | `1` |
 | `private_endpoint_subnet_id` | Subnet for private endpoints; `null` creates none | `string` | `null` |
-| `private_dns_zone_ids` | DNS zone IDs keyed by `openai`, `search`, `aml` | `map(string)` | `{}` |
+| `private_dns_zone_ids` | DNS zone IDs keyed by `aml`, `openai`, `search`, `keyvault`, `blob`, `file` | `map(string)` | `{}` |
 
 ## Outputs
 
@@ -116,6 +120,20 @@ In this repository the module is wired up in [`ai_ml.tf`](../../ai_ml.tf) and co
 | ML workspace identity | Cognitive Services OpenAI User | OpenAI | Call models from pipelines and prompt flow |
 | AI Search identity | Cognitive Services OpenAI User | OpenAI | Integrated vectorization (embedding during indexing) |
 | OpenAI identity | Search Index Data Reader | AI Search | "On your data" / RAG retrieval |
+
+## Security scanning (Checkov)
+
+The module passes Checkov apart from a few checks that are skipped inline with a documented reason
+(`#checkov:skip=...` in `main.tf`):
+
+- customer-managed keys
+- Shared Key auth, which Azure ML datastores need
+- queue logging
+- configurable replica and replication counts
+- checks that Checkov can't evaluate through `for_each`
+
+When the repo is scanned as a whole, Checkov evaluates the module with the dev values. Dev deliberately enables
+public access and LRS storage, so those public-access findings are expected for dev.
 
 ## Testing
 

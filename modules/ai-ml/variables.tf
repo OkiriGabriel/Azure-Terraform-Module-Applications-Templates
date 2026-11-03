@@ -38,9 +38,9 @@ variable "log_analytics_workspace_id" {
 }
 
 variable "public_network_access_enabled" {
-  description = "Allow public network access to the AI/ML endpoints. Set to false with private endpoints in production."
+  description = "Allow public network access to the AI/ML endpoints. Secure by default (false); set to true only for dev/sandbox, otherwise supply private_endpoint_subnet_id."
   type        = bool
-  default     = true
+  default     = false
 }
 
 # ---------------------------------------------------------------------------
@@ -57,9 +57,9 @@ variable "storage_account_name" {
 }
 
 variable "storage_replication_type" {
-  description = "Replication type for the ML storage account (LRS, ZRS, GRS, GZRS)."
+  description = "Replication type for the ML storage account (LRS, ZRS, GRS, RAGRS, GZRS, RAGZRS). LRS is fine for dev."
   type        = string
-  default     = "LRS"
+  default     = "ZRS"
 
   validation {
     condition     = contains(["LRS", "ZRS", "GRS", "RAGRS", "GZRS", "RAGZRS"], var.storage_replication_type)
@@ -136,6 +136,18 @@ variable "openai_local_auth_enabled" {
   default     = false
 }
 
+variable "openai_outbound_network_restricted" {
+  description = "Data loss prevention: block OpenAI outbound calls except to openai_allowed_fqdns (the AI Search endpoint is added automatically)."
+  type        = bool
+  default     = true
+}
+
+variable "openai_allowed_fqdns" {
+  description = "Extra FQDNs Azure OpenAI may reach when outbound access is restricted."
+  type        = list(string)
+  default     = []
+}
+
 variable "openai_deployments" {
   description = "Map of Azure OpenAI model deployments keyed by deployment name."
   type = map(object({
@@ -171,6 +183,11 @@ variable "search_replica_count" {
   description = "Number of search replicas (use >= 2 for read SLA, >= 3 for read/write SLA)."
   type        = number
   default     = 1
+
+  validation {
+    condition     = var.search_replica_count >= 1 && var.search_replica_count <= 12
+    error_message = "search_replica_count must be between 1 and 12."
+  }
 }
 
 variable "search_partition_count" {
@@ -190,8 +207,13 @@ variable "private_endpoint_subnet_id" {
 
 variable "private_dns_zone_ids" {
   description = <<-EOT
-    Optional private DNS zone IDs keyed by service: "openai" (privatelink.openai.azure.com),
-    "search" (privatelink.search.windows.net), "aml" (privatelink.api.azureml.ms).
+    Optional private DNS zone IDs keyed by endpoint:
+      aml      = privatelink.api.azureml.ms
+      openai   = privatelink.openai.azure.com
+      search   = privatelink.search.windows.net
+      keyvault = privatelink.vaultcore.azure.net
+      blob     = privatelink.blob.core.windows.net
+      file     = privatelink.file.core.windows.net
   EOT
   type        = map(string)
   default     = {}

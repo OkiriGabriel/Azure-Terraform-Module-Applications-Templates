@@ -58,7 +58,7 @@ module "security" {
 | `availability_zones` | Availability zones for resources | `list(string)` | `["1", "2", "3"]` | no |
 | `enable_ddos_protection` | Enable DDoS Protection Plan | `bool` | `false` | no |
 | `network_security_groups` | Network security groups and their rules | `map(...)` | `{}` | no |
-| `enable_security_center` | Enable Azure Security Center | `bool` | `true` | no |
+| `enable_security_center` | Enable Microsoft Defender for Cloud configuration. Off by default because paid (Standard) plans incur charges. | `bool` | `false` | no |
 | `defender_plans` | Defender for Cloud plans | `map(...)` | `see source` | no |
 | `security_contact_email` | Security contact email | `string` | `null` | no |
 | `security_contact_phone` | Security contact phone | `string` | `null` | no |
