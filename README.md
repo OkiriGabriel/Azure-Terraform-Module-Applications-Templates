@@ -1,5 +1,6 @@
 # Azure Full Infrastructure - Terraform
 
+![Release](https://img.shields.io/github/v/tag/OkiriGabriel/terraform-azure-platform?label=release&sort=semver)
 ![Terraform](https://img.shields.io/badge/Terraform-1.10.0-623CE4?logo=terraform)
 ![Azure](https://img.shields.io/badge/Azure-Cloud-0078D4?logo=microsoft-azure)
 ![License](https://img.shields.io/badge/License-Proprietary-red)
@@ -202,8 +203,23 @@ Ensure you have:
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/OkiriGabriel/terraform-azure-platform.git
+# Latest stable release (recommended)
+git clone --branch v2.1.0 https://github.com/OkiriGabriel/terraform-azure-platform.git
 cd terraform-azure-platform
+
+# Or the latest development code
+git clone https://github.com/OkiriGabriel/terraform-azure-platform.git
+```
+
+#### Using a module from another project
+
+Pin a module to a release tag with `?ref=` so upstream changes never reach you unannounced:
+
+```hcl
+module "ai_ml" {
+  source = "git::https://github.com/OkiriGabriel/terraform-azure-platform.git//modules/ai-ml?ref=v2.1.0"
+  # ...inputs, see modules/ai-ml/README.md
+}
 ```
 
 ### 2. Configure Azure Authentication
@@ -621,5 +637,5 @@ Maintained by the DevOps Team
 ---
 
 **Last Updated**: November 2026  
-**Version**: 2.1.0  
+**Version**: [v2.1.0](https://github.com/OkiriGabriel/terraform-azure-platform/releases/tag/v2.1.0)  
 **Status**: Production Ready
