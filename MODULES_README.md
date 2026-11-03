@@ -12,6 +12,7 @@ This document provides an overview of the new infrastructure modules added to su
 6. [Azure Migrate Module](#azure-migrate-module)
 7. [Database Migration Module](#database-migration-module)
 8. [Site Recovery Module](#site-recovery-module)
+9. [AI / ML Module](#ai--ml-module)
 
 ## AKS Module
 
@@ -386,3 +387,31 @@ This infrastructure code is proprietary to your organization.
 ## Maintenance
 Last updated: June 2026
 Maintained by: DevOps Team
+
+## AI / ML Module
+
+### Overview
+Deploys an AI/ML platform:
+
+- an Azure Machine Learning workspace with CPU/GPU compute clusters
+- Azure OpenAI model deployments
+- Azure AI Search for RAG
+
+The services authenticate to each other with managed identities rather than keys.
+
+### Location
+`./modules/ai-ml/`
+
+### Key Features
+- **Machine Learning**: Workspace with a dedicated Key Vault (RBAC), storage (TLS 1.2) and App Insights
+- **Compute**: Map of clusters (e.g. `Standard_NC4as_T4_v3` GPUs) with scale-to-zero and low-priority VMs
+- **Generative AI**: Azure OpenAI with Entra ID-only auth and configurable model deployments
+- **Search**: Azure AI Search with vector/hybrid search
+- **Security**: Role assignments between services, diagnostic settings, optional private endpoints
+- **Testing**: `terraform test` suite with mocked providers
+
+### Configuration
+Configure with `ai_ml_config` in `vars_enviro_dev.tf` / `var_enviro_prod.tf`. It is disabled by default
+(`enabled = false`).
+
+See the [module README](./modules/ai-ml/README.md) and the [setup guide](./docs/AI_ML_SETUP.md).
