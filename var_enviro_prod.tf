@@ -176,6 +176,28 @@ locals {
         Environment = "prod"
       }
     }
+    # AI / ML platform (modules/ai-ml). Enable once private endpoints and quotas are in place.
+    ai_ml_config = {
+      enabled                       = false
+      public_network_access_enabled = false
+      storage_replication_type      = "ZRS"
+      high_business_impact          = true
+      compute_clusters = {
+        cpu-train = { vm_size = "Standard_DS4_v2", vm_priority = "Dedicated", max_nodes = 4 }
+        gpu-t4    = { vm_size = "Standard_NC4as_T4_v3", vm_priority = "Dedicated", max_nodes = 4 }
+      }
+      openai_enabled  = true
+      openai_location = "eastus2"
+      openai_deployments = {
+        gpt-4o                 = { model_name = "gpt-4o", model_version = "2024-11-20", sku_name = "GlobalStandard", capacity = 50 }
+        text-embedding-3-large = { model_name = "text-embedding-3-large", model_version = "1", capacity = 50 }
+      }
+      search_enabled         = true
+      search_sku             = "standard"
+      search_replica_count   = 3
+      search_partition_count = 1
+    }
+
     tags = {
       Environment  = "Production"
       Project      = "example"

@@ -15,6 +15,10 @@ PROVIDERS=(
     "Microsoft.OperationalInsights"
     "Microsoft.Insights"
     "Microsoft.CDN"
+    # AI / ML platform (modules/ai-ml)
+    "Microsoft.MachineLearningServices"
+    "Microsoft.CognitiveServices"
+    "Microsoft.Search"
 )
 
 # Register each provider

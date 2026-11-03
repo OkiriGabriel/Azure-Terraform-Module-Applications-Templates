@@ -106,7 +106,7 @@ locals {
         }
       }
 
-      enable_security_center     = true
+      enable_security_center     = false # paid Defender plans; enable only if budgeted
       security_contact_email     = "security@example.com"
       security_contact_phone     = "+1-555-0100"
       log_analytics_workspace_id = null

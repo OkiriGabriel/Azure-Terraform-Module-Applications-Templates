@@ -148,6 +148,27 @@ locals {
       }
     }
 
+    # AI / ML platform (modules/ai-ml). Disabled by default to avoid unexpected cost.
+    ai_ml_config = {
+      enabled                       = false
+      public_network_access_enabled = true
+      storage_replication_type      = "LRS"
+      high_business_impact          = false
+      compute_clusters = {
+        cpu-dev = { vm_size = "Standard_DS3_v2", max_nodes = 2 }
+      }
+      openai_enabled  = true
+      openai_location = "eastus2" # Azure OpenAI model availability varies by region
+      openai_deployments = {
+        gpt-4o-mini            = { model_name = "gpt-4o-mini", model_version = "2024-07-18", sku_name = "GlobalStandard", capacity = 10 }
+        text-embedding-3-small = { model_name = "text-embedding-3-small", model_version = "1", capacity = 10 }
+      }
+      search_enabled         = true
+      search_sku             = "basic"
+      search_replica_count   = 1
+      search_partition_count = 1
+    }
+
     tags = {
       Environment  = "Development"
       Project      = "example"

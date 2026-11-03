@@ -93,34 +93,31 @@ jobs:
               body: output
             })
 
+      - name: Fail on formatting issues
+        if: steps.fmt.outcome == 'failure'
+        run: |
+          echo "::error::Terraform files are not formatted. Run 'terraform fmt -recursive' locally."
+          exit 1
+
   tfsec-scan:
     name: TFSec Security Scan
     runs-on: ubuntu-latest
     permissions:
       contents: read
       pull-requests: write
-      security-events: write
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Results are printed to the job log only. Uploading SARIF to GitHub code scanning
+      # (GitHub Advanced Security) is intentionally disabled.
       - name: Run tfsec
         uses: aquasecurity/tfsec-action@v1.0.3
         with:
           version: ${{ env.TFSEC_VERSION }}
-          format: sarif
           soft_fail: false
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          additional_args: --out tfsec-results.sarif
-
-      - name: Upload SARIF file
-        if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
-        uses: github/codeql-action/upload-sarif@v3
-        continue-on-error: true
-        with:
-          sarif_file: tfsec-results.sarif
-          category: tfsec
 
       - name: Run tfsec for PR comment
         if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
@@ -221,45 +218,48 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      security-events: write
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Results are printed to the job log only (no GitHub Advanced Security upload).
       - name: Run Checkov
         uses: bridgecrewio/checkov-action@master
         with:
           directory: .
           framework: terraform
-          output_format: cli,sarif
-          output_file_path: console,checkov-results.sarif
+          output_format: cli
           soft_fail: true
           download_external_modules: false
 
-      - name: Upload Checkov SARIF
-        if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
-        uses: github/codeql-action/upload-sarif@v3
-        continue-on-error: true
-        with:
-          sarif_file: checkov-results.sarif
-          category: checkov
+  discover-modules:
+    name: Discover Modules
+    runs-on: ubuntu-latest
+    outputs:
+      modules: ${{ steps.list.outputs.modules }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: List modules
+        id: list
+        run: |
+          MODULES=$(find modules -mindepth 2 -maxdepth 2 -name '*.tf' -exec dirname {} \; \
+            | xargs -n1 basename | sort -u | jq -R . | jq -cs .)
+          echo "Found modules: $MODULES"
+          echo "modules=$MODULES" >> "$GITHUB_OUTPUT"
 
   module-tests:
-    name: Module Tests
+    name: Module Tests (${{ matrix.module }})
     runs-on: ubuntu-latest
+    needs: discover-modules
     strategy:
+      fail-fast: false
       matrix:
-        module:
-          - aks
-          - security
-          - vnet-peering
-          - virtual-wan
-          - routing
-          - azure-migrate
-          - database-migration
-          - site-recovery
-    
+        module: ${{ fromJson(needs.discover-modules.outputs.modules) }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -269,17 +269,26 @@ jobs:
         with:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
 
-      - name: Terraform Init - ${{ matrix.module }}
+      - name: Terraform Format Check
         working-directory: ./modules/${{ matrix.module }}
-        run: terraform init -backend=false
+        run: terraform fmt -check -recursive -diff
 
-      - name: Terraform Validate - ${{ matrix.module }}
+      - name: Terraform Init
         working-directory: ./modules/${{ matrix.module }}
-        run: terraform validate
+        run: terraform init -backend=false -input=false
 
-      - name: Terraform Format Check - ${{ matrix.module }}
+      - name: Terraform Validate
         working-directory: ./modules/${{ matrix.module }}
-        run: terraform fmt -check -recursive
+        run: terraform validate -no-color
+
+      - name: Terraform Test (mocked providers)
+        working-directory: ./modules/${{ matrix.module }}
+        run: |
+          if [ -d tests ] && ls tests/*.tftest.hcl >/dev/null 2>&1; then
+            terraform test -no-color
+          else
+            echo "No tests for ${{ matrix.module }} - skipping"
+          fi
 
   documentation-check:
     name: Documentation Check
@@ -318,15 +327,18 @@ jobs:
       - name: Check module documentation
         run: |
           echo "Checking module documentation..."
+          MISSING=0
           
           for module in modules/*/; do
             module_name=$(basename "$module")
             if [ ! -f "$module/README.md" ] && [ ! -f "$module/readme.md" ]; then
-              echo "⚠️ Missing README in module: $module_name"
+              echo "::error::Missing README in module: $module_name"
+              MISSING=1
             else
               echo "README found in module: $module_name"
             fi
           done
+          exit $MISSING
 
   lint-check:
     name: Terraform Lint

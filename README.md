@@ -4,16 +4,26 @@
 ![Azure](https://img.shields.io/badge/Azure-Cloud-0078D4?logo=microsoft-azure)
 ![License](https://img.shields.io/badge/License-Proprietary-red)
 ![Status](https://img.shields.io/badge/Status-Active-success)
+![AI/ML](https://img.shields.io/badge/AI%2FML-Azure%20ML%20%7C%20OpenAI%20%7C%20AI%20Search-8A2BE2)
+![CI](https://img.shields.io/badge/CI-fmt%20%7C%20validate%20%7C%20test%20%7C%20tfsec%20%7C%20checkov-blue)
 
-This repository contains enterprise-grade Terraform configuration for Azure infrastructure, implementing a comprehensive hub-and-spoke network topology with advanced security, container orchestration (AKS), and on-premises to cloud migration capabilities.
+This repository contains enterprise-grade Terraform configuration for Azure infrastructure. It provides:
+
+- a hub-and-spoke network topology with advanced security
+- container orchestration (AKS and Container Apps)
+- an **AI/ML platform**: Azure Machine Learning, Azure OpenAI and Azure AI Search
+- on-premises to cloud migration capabilities
 
 ## 📋 Table of Contents
 
 - [Architecture Overview](#architecture-overview)
 - [Features](#features)
+- [AI / ML Platform](#-ai--ml-platform)
 - [Prerequisites](#prerequisites)
 - [Quick Start](#quick-start)
+- [Project Structure](#-project-structure)
 - [Module Documentation](#module-documentation)
+- [Standards & Conventions](#-standards--conventions)
 - [CI/CD Pipeline](#cicd-pipeline)
 - [Contributing](#contributing)
 - [Security](#security)
@@ -39,6 +49,13 @@ This repository contains enterprise-grade Terraform configuration for Azure infr
 - **Storage**: Blob storage with CDN integration
 - **Notification Hub**: Push notifications
 - **Monitoring**: Log Analytics, Application Insights
+
+### AI / ML Infrastructure
+- **Azure Machine Learning**: Workspace, model registry, pipelines and managed endpoints
+- **Compute Clusters**: CPU/GPU training clusters (e.g. NVIDIA T4) that scale to zero when idle
+- **Azure OpenAI**: GPT-4o / GPT-4o-mini and embedding model deployments
+- **Azure AI Search**: Vector and hybrid search for Retrieval-Augmented Generation (RAG)
+- **Key-less Security**: Managed identities and Entra ID role assignments between services, no API keys
 
 ### Migration Capabilities
 - **Azure Migrate**: On-premises discovery and assessment
@@ -76,6 +93,17 @@ This repository contains enterprise-grade Terraform configuration for Azure infr
 -  Azure AD RBAC integration
 -  Container Insights monitoring
 
+### AI / ML
+-  Azure Machine Learning workspace with dedicated Key Vault, storage and App Insights
+-  GPU and CPU compute clusters with scale-to-zero and low-priority VMs
+-  Azure OpenAI model deployments (Standard / GlobalStandard SKUs)
+-  Azure AI Search for vector search / RAG
+-  Entra ID-only auth (local/API-key auth disabled by default)
+-  Optional private endpoints and private DNS integration
+-  Diagnostic logs to Log Analytics
+-  Per-environment feature flag (`ai_ml_config.enabled`)
+-  Unit tests with mocked providers (`terraform test`)
+
 ### Migration & DR
 -  Azure Migrate for assessment
 -  Database Migration Service
@@ -90,6 +118,65 @@ This repository contains enterprise-grade Terraform configuration for Azure infr
 -  Log Analytics workspace
 -  Diagnostic settings
 -  Pre-migration assessment runbooks
+
+## 🤖 AI / ML Platform
+
+The [`ai-ml`](./modules/ai-ml/README.md) module adds an AI platform on top of the existing hub-and-spoke foundation.
+It reuses the shared Log Analytics workspace and Container Registry.
+
+```text
+                 ┌────────────────────────┐   managed identity   ┌──────────────────────┐
+  az ml / SDK ──▶│  Azure ML Workspace    │─────────────────────▶│     Azure OpenAI     │
+                 │  + compute clusters    │                      │ gpt-4o / embeddings  │
+                 └──┬──────┬──────┬───────┘                      └──────────▲───────────┘
+                    │      │      │                                         │ MI
+                    ▼      ▼      ▼                              ┌──────────┴───────────┐
+               Storage  Key Vault  App Insights ──▶ Log Analytics│   Azure AI Search    │
+                                                                 │  (vector index, RAG) │
+               ACR (shared, environment images)                  └──────────────────────┘
+```
+
+### Enable it
+
+The platform is **disabled by default** so it adds no cost until you opt in. Turn it on per environment:
+
+```hcl
+# vars_enviro_dev.tf
+ai_ml_config = {
+  enabled         = true
+  openai_location = "eastus2"   # region with your model quota
+  compute_clusters = {
+    cpu-dev = { vm_size = "Standard_DS3_v2", max_nodes = 2 }
+  }
+  openai_deployments = {
+    gpt-4o-mini = { model_name = "gpt-4o-mini", model_version = "2024-07-18", sku_name = "GlobalStandard" }
+  }
+  # ...see vars_enviro_dev.tf for every option
+}
+```
+
+```bash
+./automation/register_providers.sh     # registers MachineLearningServices, CognitiveServices, Search
+terraform plan -out=tfplan && terraform apply tfplan
+terraform output ai_ml_openai_endpoint
+```
+
+| | Dev default | Prod default |
+|---|---|---|
+| Network | Public | Private (set `private_endpoint_subnet_id`) |
+| Compute | `cpu-dev` (low priority) | `cpu-train` + `gpu-t4` (dedicated) |
+| Models | gpt-4o-mini, text-embedding-3-small | gpt-4o, text-embedding-3-large |
+| AI Search | basic, 1 replica | standard, 3 replicas |
+| Storage | LRS | ZRS |
+
+📘 **Full guide:** [docs/AI_ML_SETUP.md](./docs/AI_ML_SETUP.md). It covers:
+
+- prerequisites and quota
+- data-plane RBAC
+- calling OpenAI with Entra ID
+- submitting training jobs
+- RAG setup
+- production hardening, costs and troubleshooting
 
 ## 📦 Prerequisites
 
@@ -111,12 +198,12 @@ Ensure you have:
 - User Access Administrator (for RBAC assignments)
 - Or Owner role (recommended)
 
-## c Quick Start
+## 🚀 Quick Start
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/your-org/Azure-full-infrastructure.git
-cd Azure-full-infrastructure
+git clone https://github.com/OkiriGabriel/terraform-azure-platform.git
+cd terraform-azure-platform
 ```
 
 ### 2. Configure Azure Authentication
@@ -140,12 +227,17 @@ terraform login
 # The configuration is already set in provider.tf
 ```
 
-### 4. Initialize Terraform
+### 4. Register Resource Providers
+```bash
+./automation/register_providers.sh
+```
+
+### 5. Initialize Terraform
 ```bash
 terraform init
 ```
 
-### 5. Select or Create Workspace
+### 6. Select or Create Workspace
 ```bash
 # List available workspaces
 terraform workspace list
@@ -157,27 +249,52 @@ terraform workspace select example-infrastructure-dev
 terraform workspace new example-infrastructure-dev
 ```
 
-### 6. Review Configuration
+### 7. Review Configuration
 Edit environment-specific configuration:
 - For dev: `vars_enviro_dev.tf`
 - For prod: `var_enviro_prod.tf`
 
-See `vars_module_examples.tf` for configuration examples.
+See `vars_module_examples.tf` for configuration examples. To enable the AI/ML platform, set
+`ai_ml_config.enabled = true` (see [AI / ML Platform](#-ai--ml-platform)).
 
-### 7. Plan Infrastructure
+### 8. Plan Infrastructure
 ```bash
 terraform plan -out=tfplan
 ```
 
-### 8. Apply Changes
+### 9. Apply Changes
 ```bash
 terraform apply tfplan
 ```
 
-### 9. Verify Deployment
+### 10. Verify Deployment
 ```bash
 # Check resources in Azure Portal or CLI
 az resource list --resource-group example-dev-resource-group --output table
+```
+
+## 🗂️ Project Structure
+
+```text
+.
+├── provider.tf               # Terraform + provider versions, backend
+├── locals.tf                 # Workspace → environment selection
+├── vars_enviro_dev.tf        # Dev environment configuration (local.dev)
+├── var_enviro_prod.tf        # Prod environment configuration (local.prod)
+├── ai_ml.tf                  # AI/ML platform wiring
+├── acr.tf, keyvault.tf, ...  # One root file per capability
+├── modules/
+│   └── <module>/
+│       ├── main.tf           # Resources
+│       ├── variables.tf      # Inputs (with descriptions & validation)
+│       ├── outputs.tf        # Outputs
+│       ├── versions.tf       # Terraform + provider constraints
+│       ├── README.md         # Module documentation
+│       └── tests/            # Optional `terraform test` suites
+├── docs/
+│   └── AI_ML_SETUP.md        # AI/ML setup guide
+├── automation/               # Helper scripts (provider registration, imports)
+└── .github/workflows/        # CI pipelines
 ```
 
 ## 📚 Module Documentation
@@ -200,8 +317,31 @@ az resource list --resource-group example-dev-resource-group --output table
 | **acr** | Container Registry | [README](./modules/acr/README.md) |
 | **keyvault** | Key Vault | [README](./modules/keyvault/README.md) |
 | **redis** | Redis Cache | [README](./modules/redis/README.md) |
+| **ai-ml** 🆕 | Azure ML, OpenAI, AI Search | [README](./modules/ai-ml/README.md) |
+| **blob-storage** | Blob storage + CDN | [README](./modules/blob-storage/README.md) |
+| **monitoring** | Prometheus, Grafana, Loki | [README](./modules/monitoring/README.md) |
+| **notification-hub** | Push notifications | [README](./modules/notification-hub/README.md) |
+| **resource_group** | Resource group | [README](./modules/resource_group/README.md) |
 
 For detailed module documentation, see [MODULES_README.md](./MODULES_README.md)
+
+## 📐 Standards & Conventions
+
+Every module follows the same layout and rules, and CI enforces them:
+
+| Standard | Rule |
+|----------|------|
+| **File layout** | `main.tf`, `variables.tf`, `outputs.tf`, `versions.tf`, `README.md`. No outputs inside `main.tf` |
+| **Version pinning** | Each module declares `required_version >= 1.10.0` and `azurerm ~> 4.18` in `versions.tf`, so it validates on its own |
+| **Formatting** | `terraform fmt -recursive` (CI fails on unformatted code) |
+| **Naming** | `<prefix>-<env>-<service>` (e.g. `example-dev-mlw`). Storage and ACR names are alphanumeric only (`exampledevmlsa`) |
+| **Inputs** | Every variable has a `description` and `type`. Constrained values get a `validation` block |
+| **Outputs** | Every output has a `description`. Secrets are marked `sensitive = true` |
+| **Tagging** | All resources take `tags`: `Environment`, `Project`, `Owner`, `CostCenter`, `BusinessUnit`, `ManagedBy`, plus a `Workload` tag where useful |
+| **Feature flags** | Optional or costly capabilities are switched with `<feature>_config.enabled` and default to off |
+| **Security** | Managed identities over keys, TLS 1.2+, diagnostic settings to Log Analytics, private endpoints in prod |
+| **Testing** | New modules ship `tests/*.tftest.hcl` with mocked providers |
+| **Documentation** | Every module has a README (CI fails without one) |
 
 ## 🔄 CI/CD Pipeline
 
@@ -210,9 +350,9 @@ For detailed module documentation, see [MODULES_README.md](./MODULES_README.md)
 Every pull request automatically runs:
 
 1. **Terraform Validation**
-   - Format checking (`terraform fmt`)
+   - Format checking (`terraform fmt`). **Fails the build** if code is unformatted
    - Initialization (`terraform init`)
-   - Validation (`terraform validate`)
+   - Validation (`terraform validate`) for the dev and prod workspaces
 
 2. **Security Scanning**
    - **TFSec**: Terraform security scanner
@@ -222,8 +362,9 @@ Every pull request automatically runs:
 
 3. **Quality Checks**
    - **TFLint**: Terraform linting
-   - **Module testing**: Individual module validation
-   - **Documentation checks**: Ensure README files exist
+   - **Module testing**: Every module is discovered automatically. For each one, CI runs
+     `fmt`, `init`, `validate` and `terraform test` (mocked providers, no Azure credentials needed)
+   - **Documentation checks**: The root docs and a README in every module are required
 
 4. **PR Checks**
    - PR title format validation
@@ -235,6 +376,29 @@ Every pull request automatically runs:
 
 - `.github/workflows/terraform-validate.yml` - Main validation pipeline
 - `.github/workflows/pr-checks.yml` - PR-specific checks
+
+### Running the checks locally
+
+```bash
+terraform fmt -recursive
+terraform init -backend=false && terraform validate
+for m in modules/*/; do (cd "$m" && terraform init -backend=false -input=false >/dev/null && terraform validate); done
+(cd modules/ai-ml && terraform test)
+tflint --recursive
+tfsec . --config-file .tfsec.yml
+```
+
+### PR title format
+
+PR titles must follow [Conventional Commits](https://www.conventionalcommits.org/). Otherwise the
+*PR Title Check* fails with `No release type found in pull request title`. Examples:
+
+```text
+feat: add AI/ML platform module
+fix(spoke): correct NSG association
+docs: update AI/ML setup guide
+ci: run terraform test for all modules
+```
 
 ### Required Secrets
 
@@ -406,11 +570,17 @@ All resources are tagged for cost tracking:
 - `CostCenter`: Cost center code
 - `BusinessUnit`: Business unit
 - `ManagedBy`: Terraform
+- `Workload`: e.g. `ai-ml` (lets you filter AI spend in Cost Management)
+
+> AI/ML cost drivers are GPU node-minutes, OpenAI tokens and the always-on AI Search SKU. Clusters
+> scale to zero by default. See the [cost overview](./docs/AI_ML_SETUP.md#6-cost-overview-approximate).
 
 Review costs in Azure Cost Management + Billing.
 
 ## 📖 Additional Documentation
 
+- [AI / ML Setup Guide](./docs/AI_ML_SETUP.md) - Enable and use Azure ML, OpenAI and AI Search
+- [AI / ML Module](./modules/ai-ml/README.md) - Module inputs, outputs and role assignments
 - [Modules Documentation](./MODULES_README.md) - Detailed module documentation
 - [Implementation Summary](./IMPLEMENTATION_SUMMARY.md) - Implementation details
 - [Contributing Guide](./CONTRIBUTING.md) - How to contribute
@@ -420,8 +590,8 @@ Review costs in Azure Cost Management + Billing.
 
 ### Getting Help
 
-- **Issues**: [GitHub Issues](https://github.com/your-org/Azure-full-infrastructure/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/your-org/Azure-full-infrastructure/discussions)
+- **Issues**: [GitHub Issues](https://github.com/OkiriGabriel/terraform-azure-platform/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/OkiriGabriel/terraform-azure-platform/discussions)
 - **Email**: thedavidoyebanji@gmail.com
 
 ### Resources
@@ -429,6 +599,9 @@ Review costs in Azure Cost Management + Billing.
 - [Azure Documentation](https://docs.microsoft.com/en-us/azure/)
 - [Terraform Documentation](https://www.terraform.io/docs)
 - [AzureRM Provider](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs)
+- [Azure Machine Learning](https://learn.microsoft.com/azure/machine-learning/)
+- [Azure OpenAI](https://learn.microsoft.com/azure/ai-services/openai/)
+- [Azure AI Search](https://learn.microsoft.com/azure/search/)
 
 ## 📜 License
 
@@ -447,6 +620,6 @@ Maintained by the DevOps Team
 
 ---
 
-**Last Updated**: June 2026  
-**Version**: 2.0.0  
+**Last Updated**: November 2026  
+**Version**: 2.1.0  
 **Status**: Production Ready
